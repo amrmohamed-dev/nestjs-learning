@@ -37,20 +37,18 @@ export class CoffeeService {
     },
   ];
 
-  private getCoffeeIndex(id: string) {
-    const coffeeIndex = this.coffees.findIndex(
-      (coffee) => coffee.id === Number(id),
-    );
+  private getCoffeeIndex(id: number) {
+    const coffeeIndex = this.coffees.findIndex((coffee) => coffee.id === id);
     if (coffeeIndex === -1)
       throw new HttpException('No coffee with that ID', HttpStatus.NOT_FOUND);
 
     return coffeeIndex;
   }
 
-  findAll(limit: string | number, page: string | number) {
-    limit = Number(limit) || 10;
-    page = Number(page) || 1;
-    const start = (Number(page) - 1) * Number(limit);
+  findAll(limit: number, page: number) {
+    limit = limit <= 0 ? 10 : limit || 10;
+    page = page <= 0 ? 1 : page || 1;
+    const start = (page - 1) * limit;
 
     return {
       meta: { page, limit },
@@ -58,7 +56,7 @@ export class CoffeeService {
     };
   }
 
-  findOne(id: string) {
+  findOne(id: number) {
     const coffee = this.coffees[this.getCoffeeIndex(id)];
 
     return coffee;
@@ -75,7 +73,7 @@ export class CoffeeService {
     return { id: lastCoffeeId + 1, ...createCoffeeDto };
   }
 
-  update(id: string, updateCoffeeDto) {
+  update(id: number, updateCoffeeDto) {
     const coffeeIndex = this.getCoffeeIndex(id);
 
     this.coffees[coffeeIndex] = {
@@ -86,7 +84,7 @@ export class CoffeeService {
     return this.coffees[coffeeIndex];
   }
 
-  remove(id: string): void {
+  remove(id: number): void {
     this.getCoffeeIndex(id);
 
     this.coffees = this.coffees.filter((coffee) => coffee.id !== Number(id));
