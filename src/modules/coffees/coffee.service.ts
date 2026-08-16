@@ -1,92 +1,74 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { Coffee } from './entities/coffee.entity';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
+import { UpdateCoffeeDto } from './dto/update-coffee.dto';
+import { Coffee } from './entities/coffee.entity';
 
 @Injectable()
 export class CoffeeService {
-  coffees: Coffee[] = [
-    {
-      id: 1,
-      name: 'Espresso Roast',
-      brand: 'Lavazza',
-      flavors: ['Chocolate', 'Caramel', 'Nutty'],
-    },
-    {
-      id: 2,
-      name: 'Colombian Supremo',
-      brand: 'Juan Valdez',
-      flavors: ['Citrus', 'Caramel', 'Sweet'],
-    },
-    {
-      id: 3,
-      name: 'Ethiopian Yirgacheffe',
-      brand: 'Starbucks',
-      flavors: ['Floral', 'Berry', 'Citrus'],
-    },
-    {
-      id: 4,
-      name: 'French Roast',
-      brand: 'Peet’s Coffee',
-      flavors: ['Smoky', 'Dark Chocolate', 'Roasted'],
-    },
-    {
-      id: 5,
-      name: 'House Blend',
-      brand: 'Dunkin’',
-      flavors: ['Cocoa', 'Nutty', 'Sweet'],
-    },
-  ];
+  constructor(
+    @InjectRepository(Coffee)
+    private readonly coffeeRepository: Repository<Coffee>,
+  ) {}
 
-  private getCoffeeIndex(id: number) {
-    const coffeeIndex = this.coffees.findIndex((coffee) => coffee.id === id);
-    if (coffeeIndex === -1)
-      throw new HttpException('No coffee with that ID', HttpStatus.NOT_FOUND);
+  async findAll(limit: number, page: number) {
+    limit = (limit <= 0 ? 10 : limit) || 10;
+    page = (page <= 0 ? 1 : page) || 1;
+    const skip = (page - 1) * limit;
 
-    return coffeeIndex;
-  }
+    const [coffees, totalResults] = await this.coffeeRepository.findAndCount({
+      skip,
+      take: limit,
+    });
 
-  findAll(limit: number, page: number) {
-    limit = limit <= 0 ? 10 : limit || 10;
-    page = page <= 0 ? 1 : page || 1;
-    const start = (page - 1) * limit;
+    const totalPages = Math.ceil(totalResults / limit);
 
     return {
-      meta: { page, limit },
-      coffees: this.coffees.slice(start, start + limit),
+      meta: {
+        totalResults,
+        totalPages,
+        page,
+        hasPrev: page > 1,
+        hasNext: page < totalPages,
+      },
+      data: { coffees },
     };
   }
 
-  findOne(id: number) {
-    const coffee = this.coffees[this.getCoffeeIndex(id)];
+  async findOne(id: number) {
+    const coffee = await this.coffeeRepository.findOneBy({ id });
+
+    if (!coffee) throw new NotFoundException('No coffee with that ID');
 
     return coffee;
   }
 
-  create(createCoffeeDto: CreateCoffeeDto) {
-    let lastCoffeeId = 0;
+  async create(createCoffeeDto: CreateCoffeeDto) {
+    const coffee = this.coffeeRepository.create(createCoffeeDto);
 
-    if (this.coffees.length > 0)
-      lastCoffeeId = this.coffees[this.coffees.length - 1].id;
+    await this.coffeeRepository.save(coffee);
 
-    this.coffees.push({ id: lastCoffeeId + 1, ...createCoffeeDto });
-
-    return { id: lastCoffeeId + 1, ...createCoffeeDto };
+    return coffee;
   }
 
-  update(id: number, updateCoffeeDto) {
-    const coffeeIndex = this.getCoffeeIndex(id);
-
-    this.coffees[coffeeIndex] = {
-      ...this.coffees[coffeeIndex],
+  async update(id: number, updateCoffeeDto: UpdateCoffeeDto) {
+    const coffee = await this.coffeeRepository.preload({
+      id,
       ...updateCoffeeDto,
-    };
+    });
 
-    return this.coffees[coffeeIndex];
+    if (!coffee) throw new NotFoundException('No coffee with that ID');
+
+    await this.coffeeRepository.save(coffee);
+
+    return coffee;
   }
 
-  remove(id: number): void {
-    this.getCoffeeIndex(id);
+  async remove(id: number) {
+    const result = await this.coffeeRepository.delete(id);
 
-    this.coffees = this.coffees.filter((coffee) => coffee.id !== Number(id));
+    if (result.affected === 0)
+      throw new NotFoundException('No coffee with that ID');
   }
 }
