@@ -18,6 +18,7 @@ export class CoffeeService {
     const skip = (page - 1) * limit;
 
     const [coffees, totalResults] = await this.coffeeRepository.findAndCount({
+      relations: { flavors: true },
       skip,
       take: limit,
     });
@@ -37,7 +38,10 @@ export class CoffeeService {
   }
 
   async findOne(id: number) {
-    const coffee = await this.coffeeRepository.findOneBy({ id });
+    const coffee = await this.coffeeRepository.findOne({
+      where: { id },
+      relations: { flavors: true },
+    });
 
     if (!coffee) throw new NotFoundException('No coffee with that ID');
 
