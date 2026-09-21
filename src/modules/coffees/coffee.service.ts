@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateCoffeeDto } from './dto/create-coffee.dto';
 import { UpdateCoffeeDto } from './dto/update-coffee.dto';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 import { Coffee } from './entities/coffee.entity';
 import { Flavor } from './entities/flavor.entity';
 
@@ -15,9 +16,9 @@ export class CoffeeService {
     private readonly flavorRepository: Repository<Flavor>,
   ) {}
 
-  async findAll(limit: number, page: number) {
-    limit = (limit <= 0 ? 10 : limit) || 10;
-    page = (page <= 0 ? 1 : page) || 1;
+  async findAll(paginationQueryDto: PaginationQueryDto) {
+    const { limit, page } = paginationQueryDto;
+
     const skip = (page - 1) * limit;
 
     const [coffees, totalResults] = await this.coffeeRepository.findAndCount({
@@ -30,9 +31,10 @@ export class CoffeeService {
 
     return {
       meta: {
+        page,
+        limit,
         totalResults,
         totalPages,
-        page,
         hasPrev: page > 1,
         hasNext: page < totalPages,
       },
